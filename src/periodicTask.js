@@ -12,7 +12,7 @@ var util = require('./util.js');
 var config = require('./configs.js');
 var monitoring = require('./monitoring.js');
 
-cron.schedule('53 * * * *', function () {
+cron.schedule('30 * * * *', function () {
   //logger.log('info', 'running a task every minute / ' + new Date());
   console.log("============================ =================== ============================")
   console.log("============================ =================== ============================")
@@ -26,14 +26,34 @@ cron.schedule('53 * * * *', function () {
   operation_log.info("============================ =================== ============================")
   operation_log.info("============================ =================== ============================")
 
-  operation_log.info("READ TRAFFIC = " + monitoring.thisHourRead + ", WRITE TRAFFIC = " + monitoring.thisHourWrite);
-  monitoring.thisHourRead = 0;
-  monitoring.thisHourWrite = 0;
+  // operation_log.info("READ TRAFFIC = " + monitoring.thisHourRead + ", WRITE TRAFFIC = " + monitoring.thisHourWrite);
+  // monitoring.thisHourRead = 0;
+  // monitoring.thisHourWrite = 0;
 
-  job.setUserContents();
+  job.getInterCloudTraffic();
+  //job.setUserContents();
 }).start();
 
 var job = {
+  getInterCloudTraffic : function () {
+    var promise = new Promise(function(resolved, rejected){
+      //모든 유저에 대해서 반복한다.
+      //monitoring_rw 테이블에서 모든 row (2001개)를 불러온다. 변수로 저장한다.
+      //replica 컬럼에 true 면, 1KB 만 inter cloud traffic 으로 추가한다.
+      //replica 컬럼에 false 면, 해당 사용자의 데이터를 모두 옮겼다고 생각하고, 해당 사용자의 데이서 개수 * 1KB 만큼을 inter cloud traffic 으로 추가한다.
+
+    });
+
+    promise
+    .then(function(result){
+      return new Promise(function(resolved, rejected){
+        resolved();
+      })
+    }, function(err){
+        console.log(err);
+    })
+  },
+
   setUserContents : function () {
     var EACH_DATA_SIZE = 76;
     //해당 클라우드로 접속하는 사용자 리스트 알아야 한다 <-- DB에 쿼리 날려보면 됨, select * from newyork; 이런식?

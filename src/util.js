@@ -31,9 +31,11 @@ var util = {
       // }
       // return result;
   },
+
   getContentId : function () {
 
   },
+
   getServerLocation : function () {
     var serverLocation;
     var thisServerIp = util.serverIp();
@@ -60,7 +62,35 @@ var util = {
 
     //console.log("server location : " + serverLocation);
     return serverLocation;
-  }
+  },
+
+  getDistanceFromLatLonInKm : function (lat1, lon1, lat2, lon2) {
+    var R = 6371; // Radius of the earth in km
+    var dLat = util.deg2rad(lat2-lat1);  // deg2rad below
+    var dLon = util.deg2rad(lon2-lon1);
+    var a =
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(util.deg2rad(lat1)) * Math.cos(util.deg2rad(lat2)) *
+      Math.sin(dLon/2) * Math.sin(dLon/2)
+      ;
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    var d = R * c; // Distance in km
+    return d;
+  },
+
+  deg2rad : function (deg) {
+    return deg * (Math.PI/180);
+  },
+
+  getDistance : function (coord_1, coord_2) {
+    return util.getDistanceFromLatLonInKm(coord_1.lat, coord_1.lng, coord_2.lat, coord_2.lng);
+  },
+
+  getLatencyDelay : function (coord_1, coord_2) {
+    return 0.02 * util.getDistance(coord_1, coord_2) + 5;
+  },
+
+
 }
 
 module.exports = util;
