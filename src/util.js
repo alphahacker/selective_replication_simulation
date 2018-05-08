@@ -42,7 +42,7 @@ var util = {
     //console.log("this server ip : " + thisServerIp);
 
     if(thisServerIp == '192.168.0.11') { //test
-        serverLocation = 'newyork';
+        serverLocation = 'washington';
     }
     else if(thisServerIp == '165.132.104.210') {
         serverLocation = 'newyork';
@@ -83,6 +83,9 @@ var util = {
   },
 
   getDistance : function (coord_1, coord_2) {
+    console.log("coord info : ");
+    console.log(coord_1);
+    console.log(coord_2);
     return util.getDistanceFromLatLonInKm(coord_1.lat, coord_1.lng, coord_2.lat, coord_2.lng);
   },
 

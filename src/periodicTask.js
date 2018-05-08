@@ -36,9 +36,30 @@ cron.schedule('30 * * * *', function () {
 
 var job = {
   getInterCloudTraffic : function () {
+    let userList = [];
     var promise = new Promise(function(resolved, rejected){
       //모든 유저에 대해서 반복한다.
       //monitoring_rw 테이블에서 모든 row (2001개)를 불러온다. 변수로 저장한다.
+      dbPool.getConnection(function(err, conn) {
+          let query_stmt = 'SELECT * FROM monitoring_rw';
+          conn.query(query_stmt, function(err, result) {
+              if(err) {
+                 error_log.debug("Query Stmt = " + query_stmt);
+                 error_log.debug("ERROR MSG = " + err);
+                 error_log.debug();
+                 conn.release();
+                 rejected("DB err!");
+              }
+              else {
+                for (var j=0; j<rows.length; j++) {
+                  userList.push(result[j]);
+                }
+                resolved();
+              }
+          });
+      });
+
+
       //replica 컬럼에 true 면, 1KB 만 inter cloud traffic 으로 추가한다.
       //replica 컬럼에 false 면, 해당 사용자의 데이터를 모두 옮겼다고 생각하고, 해당 사용자의 데이서 개수 * 1KB 만큼을 inter cloud traffic 으로 추가한다.
 

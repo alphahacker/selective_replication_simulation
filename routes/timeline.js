@@ -326,7 +326,6 @@ router.get('/userId/:userId/numAccess/:numAccess', function(req, res, next) {
         } else {
           dbPool.getConnection(function(err, conn) {
               var query_stmt2 = 'SELECT ' + cloudLocation + ' FROM monitoring_rw WHERE UserId = "' + friendList[i] + '"'
-              console.log(query_stmt2);
               conn.query(query_stmt2, function(err, result) {
                   if(err) {
                      error_log.debug("Query Stmt = " + query_stmt);
@@ -383,7 +382,7 @@ router.get('/userId/:userId/numAccess/:numAccess', function(req, res, next) {
           let userLocation = null;
           let friendLocation = null;
 
-          let userCloudLocation = null;
+          let userCloudLocation = config.serverLocation;
           let friendCloudLocation = null;
 
           ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -399,101 +398,184 @@ router.get('/userId/:userId/numAccess/:numAccess', function(req, res, next) {
                       ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
                       //사용자와 친구 클라우드 위치 가져오기.
                       dbPool.getConnection(function(err, conn) {
-                        var query_stmt4 = 'SELECT dstLocation FROM targetLocation WHERE srcLocation = "' + userLocation + '"'
-                        conn.query(query_stmt4, function(err, userCloudLocationResult) {
+                        var query_stmt5 = 'SELECT dstLocation FROM targetLocation WHERE srcLocation = "' + friendLocation + '"'
+                        console.log(query_stmt5);
+                        conn.query(query_stmt5, function(err, friendCloudLocationResult) {
                           if(err) {
-                            error_log.debug("Query Stmt = " + query_stmt4);
+                            error_log.debug("Query Stmt = " + query_stmt5);
                             error_log.debug("ERROR MSG = " + err);
                             error_log.debug();
                             rejected("DB err!");
                           } else {
-                            userCloudLocation = userCloudLocationResult;
+                            friendCloudLocation = friendCloudLocationResult[0].dstLocation;
+                            console.log("friend cloud location : " + friendCloudLocation);
+                            console.log("friend cloud location (query result) : " + friendCloudLocationResult);
                             conn.release();
-                            dbPool.getConnection(function(err, conn) {
-                              var query_stmt5 = 'SELECT dstLocation FROM targetLocation WHERE srcLocation = "' + friendLocation + '"'
-                              conn.query(query_stmt5, function(err, friendCloudLocationResult) {
-                                if(err) {
-                                  error_log.debug("Query Stmt = " + query_stmt5);
-                                  error_log.debug("ERROR MSG = " + err);
-                                  error_log.debug();
-                                  rejected("DB err!");
-                                } else {
-                                  friendCloudLocation = friendCloudLocationResult;
-                                  conn.release();
 
-                                  if(userCloudLocation == friendCloudLocation){
-                                    // user cloud location 과 friend cloud location 이 같다면,
-                                    // 사용자의 위치와 사용자의 가장 가까운 클라우드 간의 거리 측정하고 딜레이 계산 + 로깅
-                                    operation_log.info("[Read Latency Delay]= " + getLatencyDelay(coord[userLocation], coord[userCloudLocation]) + "ms, " +
-                                                       "[USER ID] = " + req.params.userId + ", [USER LOCATION] = " + userLocation + ", [USER CLOUD LOCATION] = " + userCloudLocation + ", " +
-                                                       "[FRIEND ID] = " + friendList[i] + ", [FRIEND LOCATION] = " + friendLocation + ", [FRIEND CLOUD LOCATION] = " + friendCloudLocation);
-                                    calcLatencyDelay(i+1, callback);
-                                  } else {
-                                    // user cloud location 과 friend cloud location 이 다르다면,
-                                    // 해당 클라우드에 복제 여부를 체크한다.
-                                    let isReplicated = false;
-                                    let toBeCheckedCloud = null;
+                            if(userCloudLocation == friendCloudLocation){
+                              // user cloud location 과 friend cloud location 이 같다면,
+                              // 사용자의 위치와 사용자의 가장 가까운 클라우드 간의 거리 측정하고 딜레이 계산 + 로깅
+                              operation_log.info("[Read Latency Delay]= " + util.getLatencyDelay(coord[userLocation.toUpperCase()], coord[userCloudLocation.toUpperCase()]) + "ms, " +
+                                                 "[USER ID] = " + req.params.userId + ", [USER LOCATION] = " + userLocation + ", [USER CLOUD LOCATION] = " + userCloudLocation + ", " +
+                                                 "[FRIEND ID] = " + friendList[i] + ", [FRIEND LOCATION] = " + friendLocation + ", [FRIEND CLOUD LOCATION] = " + friendCloudLocation);
+                              calcLatencyDelay(i+1, callback);
+                            } else {
+                              // user cloud location 과 friend cloud location 이 다르다면,
+                              // 해당 클라우드에 복제 여부를 체크한다.
+                              let isReplicated = false;
+                              dbPool.getConnection(function(err, conn) {
+                                  let query_stmt5 = 'SELECT * FROM monitoring_rw WHERE UserId = "' + friendList[i] + '"';
+                                  conn.query(query_stmt5, function(err, result) {
+                                      if(err) {
+                                         error_log.debug("Query Stmt = " + query_stmt5);
+                                         error_log.debug("ERROR MSG = " + err);
+                                         error_log.debug();
+                                         conn.release();
+                                         rejected("DB err!");
+                                      }
+                                      else {
+                                        // 복제되어 있다면, 친구의 위치와 friend cloud location 간의 거리에 따라 딜레이 계산하고 로그 남긴다.
+                                        // 복제되어있지 않다면, 친구의 위치와 user cloud location 간의 거리에 따라 딜레이 계산하고 로그 남긴다.
+                                        if(userLocation == 'NEWYORK'){
+                                          isReplicated = result[0].Cloud_East_Replica;
+                                        } else if (userLocation == 'WASHINGTON') {
+                                          isReplicated = result[0].Cloud_West_Replica;
+                                        } else if (userLocation == 'TEXAS') {
+                                          isReplicated = result[0].Cloud_Central_Replica;
+                                        } else {
+                                          console.error("Cloud Location / Read Count Error ! ... (2)");
+                                          console.error("User Location : " + userLocation);
+                                          console.error("Friend ID : " + friendList[i]);
+                                        }
 
-                                    if(friendCloudLocation == 'newyork'){
-                                      toBeCheckedCloud = "Cloud_East_Replica";
-                                    } else if (friendCloudLocation == 'washington') {
-                                      toBeCheckedCloud = "Cloud_West_Replica";
-                                    } else if (friendCloudLocation == 'texas') {
-                                      toBeCheckedCloud = "Cloud_Central_Replica";
-                                    } else {
-                                      console.error("Cloud Location / Read Count Error !");
-                                    }
-                                    dbPool.getConnection(function(err, conn) {
-                                        let query_stmt5 = 'SELECT * FROM monitoring_rw WHERE UserId = "' + req.params.userId + '"';
-                                        conn.query(query_stmt5, function(err, result) {
-                                            if(err) {
-                                               error_log.debug("Query Stmt = " + query_stmt5);
-                                               error_log.debug("ERROR MSG = " + err);
-                                               error_log.debug();
-                                               conn.release();
-                                               rejected("DB err!");
-                                            }
-                                            else {
-                                              // 복제되어 있다면, 친구의 위치와 friend cloud location 간의 거리에 따라 딜레이 계산하고 로그 남긴다.
-                                              // 복제되어있지 않다면, 친구의 위치와 user cloud location 간의 거리에 따라 딜레이 계산하고 로그 남긴다.
-                                              if(friendCloudLocation == 'newyork'){
-                                                isReplicated = result[0].Cloud_East_Replica;
-                                                //toBeCheckedCloud = "Cloud_East_Replica";
-                                              } else if (friendCloudLocation == 'washington') {
-                                                isReplicated = result[0].Cloud_West_Replica;
-                                                //toBeCheckedCloud = "Cloud_West_Replica";
-                                              } else if (friendCloudLocation == 'texas') {
-                                                isReplicated = result[0].Cloud_Central_Replica;
-                                                //toBeCheckedCloud = "Cloud_Central_Replica";
-                                              } else {
-                                                console.error("Cloud Location / Read Count Error ! ... (2)");
-                                              }
+                                        conn.release();
 
-                                              conn.release();
+                                        if(isReplicated){
+                                          //복제되어 있으면, 사용자 위치와 사용자의 가장 가까운 클라우드 간의 거리 계산
+                                          operation_log.info("[Read Latency Delay]= " + util.getLatencyDelay(coord[userLocation.toUpperCase()], coord[userCloudLocation.toUpperCase()]) + "ms, " +
+                                                             "[USER ID] = " + req.params.userId + ", [USER LOCATION] = " + userLocation + ", [USER CLOUD LOCATION] = " + userCloudLocation + ", " +
+                                                             "[FRIEND ID] = " + friendList[i] + ", [FRIEND LOCATION] = " + friendLocation + ", [FRIEND CLOUD LOCATION] = " + friendCloudLocation);
+                                        } else {
+                                          //복제되어 있지 않으면, 사용자 위치와 친구의 가장 가까운 클라우드 간의 거리 계산
+                                          console.log("coord test : ");
+                                          console.log(coord[userLocation]);
+                                          console.log(coord[friendCloudLocation]);
+                                          operation_log.info("[Read Latency Delay]= " + util.getLatencyDelay(coord[userLocation.toUpperCase()], coord[friendCloudLocation.toUpperCase()]) + "ms, " +
+                                                             "[USER ID] = " + req.params.userId + ", [USER LOCATION] = " + userLocation + ", [USER CLOUD LOCATION] = " + userCloudLocation + ", " +
+                                                             "[FRIEND ID] = " + friendList[i] + ", [FRIEND LOCATION] = " + friendLocation + ", [FRIEND CLOUD LOCATION] = " + friendCloudLocation);
+                                        }
+                                        calcLatencyDelay(i+1, callback);
+                                      }
 
-                                              if(isReplicated){
-                                                //복제되어 있으면, 사용자 위치와 사용자의 가장 가까운 클라우드 간의 거리 계산
-                                                operation_log.info("[Read Latency Delay]= " + getLatencyDelay(coord[userLocation], coord[userCloudLocation]) + "ms, " +
-                                                                   "[USER ID] = " + req.params.userId + ", [USER LOCATION] = " + userLocation + ", [USER CLOUD LOCATION] = " + userCloudLocation + ", " +
-                                                                   "[FRIEND ID] = " + friendList[i] + ", [FRIEND LOCATION] = " + friendLocation + ", [FRIEND CLOUD LOCATION] = " + friendCloudLocation);
-                                              } else {
-                                                //복제되어 있지 않으면, 사용자 위치와 친구의 가장 가까운 클라우드 간의 거리 계산
-                                                operation_log.info("[Read Latency Delay]= " + getLatencyDelay(coord[userLocation], coord[friendCloudLocation]) + "ms, " +
-                                                                   "[USER ID] = " + req.params.userId + ", [USER LOCATION] = " + userLocation + ", [USER CLOUD LOCATION] = " + userCloudLocation + ", " + 
-                                                                   "[FRIEND ID] = " + friendList[i] + ", [FRIEND LOCATION] = " + friendLocation + ", [FRIEND CLOUD LOCATION] = " + friendCloudLocation);
-                                              }
-                                              calcLatencyDelay(i+1, callback);
-                                            }
-
-                                        });
-                                    });
-                                  }
-                                }
+                                  });
                               });
-                            });
+                            }
                           }
                         });
                       });
+                      // dbPool.getConnection(function(err, conn) {
+                      //   var query_stmt4 = 'SELECT dstLocation FROM targetLocation WHERE srcLocation = "' + userLocation + '"'
+                      //   conn.query(query_stmt4, function(err, userCloudLocationResult) {
+                      //     if(err) {
+                      //       error_log.debug("Query Stmt = " + query_stmt4);
+                      //       error_log.debug("ERROR MSG = " + err);
+                      //       error_log.debug();
+                      //       rejected("DB err!");
+                      //     } else {
+                      //       userCloudLocation = userCloudLocationResult;
+                      //       conn.release();
+                      //       dbPool.getConnection(function(err, conn) {
+                      //         var query_stmt5 = 'SELECT dstLocation FROM targetLocation WHERE srcLocation = "' + friendLocation + '"'
+                      //         conn.query(query_stmt5, function(err, friendCloudLocationResult) {
+                      //           if(err) {
+                      //             error_log.debug("Query Stmt = " + query_stmt5);
+                      //             error_log.debug("ERROR MSG = " + err);
+                      //             error_log.debug();
+                      //             rejected("DB err!");
+                      //           } else {
+                      //             friendCloudLocation = friendCloudLocationResult;
+                      //             conn.release();
+                      //
+                      //             if(userCloudLocation == friendCloudLocation){
+                      //               // user cloud location 과 friend cloud location 이 같다면,
+                      //               // 사용자의 위치와 사용자의 가장 가까운 클라우드 간의 거리 측정하고 딜레이 계산 + 로깅
+                      //               operation_log.info("[Read Latency Delay]= " + util.getLatencyDelay(coord[userLocation], coord[userCloudLocation]) + "ms, " +
+                      //                                  "[USER ID] = " + req.params.userId + ", [USER LOCATION] = " + userLocation + ", [USER CLOUD LOCATION] = " + userCloudLocation + ", " +
+                      //                                  "[FRIEND ID] = " + friendList[i] + ", [FRIEND LOCATION] = " + friendLocation + ", [FRIEND CLOUD LOCATION] = " + friendCloudLocation);
+                      //               calcLatencyDelay(i+1, callback);
+                      //             } else {
+                      //               // user cloud location 과 friend cloud location 이 다르다면,
+                      //               // 해당 클라우드에 복제 여부를 체크한다.
+                      //               let isReplicated = false;
+                      //               let toBeCheckedCloud = null;
+                      //
+                      //               if(friendCloudLocation == 'newyork'){
+                      //                 toBeCheckedCloud = "Cloud_East_Replica";
+                      //               } else if (friendCloudLocation == 'washington') {
+                      //                 toBeCheckedCloud = "Cloud_West_Replica";
+                      //               } else if (friendCloudLocation == 'texas') {
+                      //                 toBeCheckedCloud = "Cloud_Central_Replica";
+                      //               } else {
+                      //                 console.error("Cloud Location / Read Count Error !");
+                      //                 console.error("User Locaiton : " + userLocation);
+                      //                 console.error("Friend ID : " + friendList[i]);
+                      //               }
+                      //               dbPool.getConnection(function(err, conn) {
+                      //                   let query_stmt5 = 'SELECT * FROM monitoring_rw WHERE UserId = "' + friendList[i] + '"';
+                      //                   conn.query(query_stmt5, function(err, result) {
+                      //                       if(err) {
+                      //                          error_log.debug("Query Stmt = " + query_stmt5);
+                      //                          error_log.debug("ERROR MSG = " + err);
+                      //                          error_log.debug();
+                      //                          conn.release();
+                      //                          rejected("DB err!");
+                      //                       }
+                      //                       else {
+                      //                         // 복제되어 있다면, 친구의 위치와 friend cloud location 간의 거리에 따라 딜레이 계산하고 로그 남긴다.
+                      //                         // 복제되어있지 않다면, 친구의 위치와 user cloud location 간의 거리에 따라 딜레이 계산하고 로그 남긴다.
+                      //                         if(userLocation == 'newyork'){
+                      //                           isReplicated = result[0].Cloud_East_Replica;
+                      //                           //toBeCheckedCloud = "Cloud_East_Replica";
+                      //                         } else if (userLocation == 'washington') {
+                      //                           isReplicated = result[0].Cloud_West_Replica;
+                      //                           //toBeCheckedCloud = "Cloud_West_Replica";
+                      //                         } else if (userLocation == 'texas') {
+                      //                           isReplicated = result[0].Cloud_Central_Replica;
+                      //                           //toBeCheckedCloud = "Cloud_Central_Replica";
+                      //                         } else {
+                      //                           console.error("Cloud Location / Read Count Error ! ... (2)");
+                      //                           console.error("User Locaiton : " + userLocation);
+                      //                           console.error("Friend ID : " + friendList[i]);
+                      //                         }
+                      //
+                      //                         conn.release();
+                      //
+                      //                         if(isReplicated){
+                      //                           //복제되어 있으면, 사용자 위치와 사용자의 가장 가까운 클라우드 간의 거리 계산
+                      //                           operation_log.info("[Read Latency Delay]= " + util.getLatencyDelay(coord[userLocation], coord[userCloudLocation]) + "ms, " +
+                      //                                              "[USER ID] = " + req.params.userId + ", [USER LOCATION] = " + userLocation + ", [USER CLOUD LOCATION] = " + userCloudLocation + ", " +
+                      //                                              "[FRIEND ID] = " + friendList[i] + ", [FRIEND LOCATION] = " + friendLocation + ", [FRIEND CLOUD LOCATION] = " + friendCloudLocation);
+                      //                         } else {
+                      //                           //복제되어 있지 않으면, 사용자 위치와 친구의 가장 가까운 클라우드 간의 거리 계산
+                      //                           console.log("coord test : ");
+                      //                           console.log(coord[userLocation]);
+                      //                           console.log(coord[friendCloudLocation]);
+                      //                           operation_log.info("[Read Latency Delay]= " + util.getLatencyDelay(coord[userLocation], coord[friendCloudLocation]) + "ms, " +
+                      //                                              "[USER ID] = " + req.params.userId + ", [USER LOCATION] = " + userLocation + ", [USER CLOUD LOCATION] = " + userCloudLocation + ", " +
+                      //                                              "[FRIEND ID] = " + friendList[i] + ", [FRIEND LOCATION] = " + friendLocation + ", [FRIEND CLOUD LOCATION] = " + friendCloudLocation);
+                      //                         }
+                      //                         calcLatencyDelay(i+1, callback);
+                      //                       }
+                      //
+                      //                   });
+                      //               });
+                      //             }
+                      //           }
+                      //         });
+                      //       });
+                      //     }
+                      //   });
+                      // });
                       ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
                     }
                 });
