@@ -23,6 +23,9 @@ var job = require('../src/periodicTask.js')
 var app = express();
 
 //---------------------------------------------------------------------------//
+router.get('/intercloud_test', function(req, res, next) {
+  job.getInterCloudTraffic();
+});
 
 router.get('/init', function(req, res, next) {
 

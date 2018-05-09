@@ -8,7 +8,7 @@ var interim_log = log4js.getLogger("interim");
 
 var redisPool = require('./caching.js');
 var dbPool = require('./db.js');
-var dbcpPool = require('./db.js');
+var dbcpPool = require('./db_2.js');
 var util = require('./util.js');
 var config = require('./configs.js');
 var monitoring = require('./monitoring.js');
@@ -32,7 +32,7 @@ cron.schedule('30 * * * *', function () {
 var job = {
   getInterCloudTraffic : function () {
     let TotalIntercloudTrafficAtThisTime = 0;
-    let userList = [];
+    var userList = [];
     var promise = new Promise(function(resolved, rejected){
       //모든 유저에 대해서 반복한다.
       //monitoring_rw 테이블에서 모든 row (2001개)를 불러온다. 변수로 저장한다.
@@ -47,9 +47,10 @@ var job = {
                  rejected("DB err!");
               }
               else {
-                for (var j=0; j<rows.length; j++) {
+                for (var j=0; j<result.length; j++) {
                   userList.push(result[j]);
                 }
+                conn.release();
                 resolved();
               }
           });
@@ -61,66 +62,82 @@ var job = {
       return new Promise(function(resolved, rejected){
         //let thisHourInterCloudTraffic = 0;
         let replicaList = [];
+        //console.log(userList);
         let calcIntercloudTraffic = function(i, callback){
-          let eachReplica = {
-            userId : null,
-            location : null,
-            prevWC : 0,
-            currWC : 0
-          };
           if(i >= userList.length){
             callback();
           } else {
             //각 사용자들의 WriteCount와 Cloud_East_ReadCount/Cloud_West_ReadCount/Cloud_Central_ReadCount를 비교한다.
             //WriteCount보다 ReadCount가 더 높은 곳이 있다면 Replication을 한다.
               //이때 해당 를라우드에 이미 리플리케이션이 되어 있지 않는지 Replica 컬럼 데이터로 확인한다.
-            if(userList[i].WriteCount <= userList[i].Cloud_East_ReadCount){
+            if(userList[i].WriteCount < userList[i].Cloud_East_ReadCount){
               if(userList[i].Cloud_East_Replica){ //복제가 되어 있으면.
                 //이미 복제되어 있으면,
                   //즉, replica 컬럼에 true 면, 이번 시간 write count 만큼 (writeCount - prevWriteCount) 만 inter cloud traffic 으로 추가한다.
                   let intercloudTrafficForUpdating = 0;
                   intercloudTrafficForUpdating = (userList[i].WriteCount - userList[i].PrevWriteCount) * 1000;
-                  operation_log.info("[INTERCLOUD TRAFFIC] User ID : " + userList[i].userId + ", Intercloud traffic : " + intercloudTrafficForUpdating + " B");
-                  TotalIntercloudTrafficAtThisTime += intercloudTrafficForUpdating;
+                  operation_log.info("[INTERCLOUD TRAFFIC] User ID : " + userList[i].UserId + ", Intercloud traffic : " + intercloudTrafficForUpdating + " B");
+                  TotalIntercloudTrafficAtThisTime += parseInt(intercloudTrafficForUpdating);
               }
               else{
                 //복제되어 있지 않으면,
                   //replica 컬럼에 false 면, 해당 사용자의 데이터를 모두 옮겼다고 생각하고, 해당 사용자의 데이서 개수 * 1KB 만큼을 inter cloud traffic 으로 추가한다.
-                  eachReplica.userId = userList[i].userId;
+                  let eachReplica = {
+                    userId : null,
+                    location : null,
+                    prevWC : 0,
+                    currWC : 0
+                  };
+
+                  eachReplica.userId = userList[i].UserId;
                   eachReplica.location = "newyork";
                   replicaList.push(eachReplica);
               }
             }
-            if(userList[i].WriteCount <= userList[i].Cloud_West_ReadCount){
+            if(userList[i].WriteCount < userList[i].Cloud_West_ReadCount){
               if(userList[i].Cloud_West_Replica){ //복제가 되어 있으면.
                 //이미 복제되어 있으면,
                   //즉, replica 컬럼에 true 면, 이번 시간 write count 만큼 (writeCount - prevWriteCount) 만 inter cloud traffic 으로 추가한다.
                   let intercloudTrafficForUpdating = 0;
                   intercloudTrafficForUpdating = (userList[i].WriteCount - userList[i].PrevWriteCount) * 1000;
-                  operation_log.info("[INTERCLOUD TRAFFIC] User ID : " + userList[i].userId + ", Intercloud traffic : " + intercloudTrafficForUpdating + " B");
-                  TotalIntercloudTrafficAtThisTime += intercloudTrafficForUpdating;
+                  operation_log.info("[INTERCLOUD TRAFFIC] User ID : " + userList[i].UserId + ", Intercloud traffic : " + intercloudTrafficForUpdating + " B");
+                  TotalIntercloudTrafficAtThisTime += parseInt(intercloudTrafficForUpdating);
               }
               else{
                 //복제되어 있지 않으면,
                   //replica 컬럼에 false 면, 해당 사용자의 데이터를 모두 옮겼다고 생각하고, 해당 사용자의 데이서 개수 * 1KB 만큼을 inter cloud traffic 으로 추가한다.
-                  eachReplica.userId = userList[i].userId;
+                  let eachReplica = {
+                    userId : null,
+                    location : null,
+                    prevWC : 0,
+                    currWC : 0
+                  };
+
+                  eachReplica.userId = userList[i].UserId;
                   eachReplica.location = "washington";
                   replicaList.push(eachReplica);
               }
             }
-            if(userList[i].WriteCount <= userList[i].Cloud_Central_ReadCount){
+            if(userList[i].WriteCount < userList[i].Cloud_Central_ReadCount){
               if(userList[i].Cloud_Central_Replica){ //복제가 되어 있으면.
                 //이미 복제되어 있으면,
                   //즉, replica 컬럼에 true 면, 이번 시간 write count 만큼 (writeCount - prevWriteCount) 만 inter cloud traffic 으로 추가한다.
                   let intercloudTrafficForUpdating = 0;
                   intercloudTrafficForUpdating = (userList[i].WriteCount - userList[i].PrevWriteCount) * 1000;
-                  operation_log.info("[INTERCLOUD TRAFFIC] User ID : " + userList[i].userId + ", Intercloud traffic : " + intercloudTrafficForUpdating + " B");
-                  TotalIntercloudTrafficAtThisTime += intercloudTrafficForUpdating;
+                  operation_log.info("[INTERCLOUD TRAFFIC] User ID : " + userList[i].UserId + ", Intercloud traffic : " + intercloudTrafficForUpdating + " B");
+                  TotalIntercloudTrafficAtThisTime += parseInt(intercloudTrafficForUpdating);
               }
               else{
                 //복제되어 있지 않으면,
                   //replica 컬럼에 false 면, 해당 사용자의 데이터를 모두 옮겼다고 생각하고, 해당 사용자의 데이서 개수 * 1KB 만큼을 inter cloud traffic 으로 추가한다.
-                  eachReplica.userId = userList[i].userId;
+                  let eachReplica = {
+                    userId : null,
+                    location : null,
+                    prevWC : 0,
+                    currWC : 0
+                  };
+
+                  eachReplica.userId = userList[i].UserId;
                   eachReplica.location = "texas";
                   replicaList.push(eachReplica);
               }
@@ -129,14 +146,14 @@ var job = {
           }
         }
         calcIntercloudTraffic(0, function(){
-          resolved(replicaList, TotalIntercloudTrafficAtThisTime);
+          resolved(replicaList);
           calcIntercloudTraffic = null;
         })
       })
     }, function(err){
         console.log(err);
     })
-    .then(function(replicaList, TotalIntercloudTrafficAtThisTime){
+    .then(function(replicaList){
       return new Promise(function(resolved, rejected){
         let doReplicating = function(i, callback){
           if(i >= replicaList.length){
@@ -147,6 +164,8 @@ var job = {
                 let query_stmt = 'SELECT userId, count(*) as contentCnt FROM userProperty ' +
                                  'WHERE userId = "' + replicaList[i].userId + '" ' +
                                  'GROUP BY userId';
+                console.log("[FROM USER PROPERTY TABLE][" + i + "/" + replicaList.length + "]");
+                //operation_log.info("QUERY STMT : " + query_stmt);
                 conn.query(query_stmt, function(err, result) {
                     if(err) {
                        error_log.debug("Query Stmt = " + query_stmt);
@@ -159,9 +178,9 @@ var job = {
                       let intercloudTrafficForReplicating = 0;
                       intercloudTrafficForReplicating += result[0].contentCnt;
                       intercloudTrafficForReplicating *= 1000;
-                      operation_log.info("[INTERCLOUD TRAFFIC] User ID : " + replicaList[i].userId + ", Intercloud traffic : " + intercloudTrafficForReplicating + " B");
+                      //operation_log.info("[INTERCLOUD TRAFFIC] User ID : " + replicaList[i].userId + ", Intercloud traffic : " + intercloudTrafficForReplicating + " B");
                       TotalIntercloudTrafficAtThisTime += intercloudTrafficForReplicating;
-
+                      conn.release();
                       doReplicating(i+1, callback);
                     }
                 });
@@ -169,7 +188,7 @@ var job = {
           }
         }
         doReplicating(0, function(){
-          operation_log.info("[TOTAL INTERCLOUD TRAFFIC AT THIS TIME] " + TotalIntercloudTrafficAtThisTime + " B");
+          operation_log.info("[TOTAL INTERCLOUD TRAFFIC AT THIS TIME] " + parseInt(TotalIntercloudTrafficAtThisTime) + " B");
           resolved(replicaList);
           doReplicating = null;
         })
@@ -200,6 +219,7 @@ var job = {
             dbPool.getConnection(function(err, conn) {
                 let query_stmt = 'UPDATE monitoring_rw SET ' + replicaLocation + ' = true ' +
                                  'WHERE UserId = "' + replicaList[i].userId + '"'
+                console.log("[UPDATING monitoring_rw TABLE][" + i + "/" + replicaList.length + "]");
                 conn.query(query_stmt, function(err, result) {
                     if(err) {
                        error_log.debug("Query Stmt = " + query_stmt);
@@ -231,8 +251,9 @@ var job = {
             callback();
           } else {
             dbPool.getConnection(function(err, conn) {
-                let query_stmt = 'UPDATE monitoring_rw SET PrevWriteCount = ' + userList[i].WriteCount + ' '
-                                 'WHERE UserId = "' + userList[i].userId + '"'
+                let query_stmt = 'UPDATE monitoring_rw SET PrevWriteCount = ' + userList[i].WriteCount + ' ' +
+                                 'WHERE UserId = "' + userList[i].UserId + '"'
+                console.log("[CHANGE PREV WRITE COUNT][" + i + "/" + userList.length + "]");
                 conn.query(query_stmt, function(err, result) {
                     if(err) {
                        error_log.debug("Query Stmt = " + query_stmt);
@@ -250,6 +271,9 @@ var job = {
         }
         changePrevWriteCount(0, function(){
           resolved();
+          // res.json({
+          //   status : "OK"
+          // });
           changePrevWriteCount = null;
         })
       })
