@@ -96,7 +96,7 @@ router.get('/init', function(req, res, next) {
         } else {
           //여기서 DB에서 user[i] 값으로 프렌드리스트 불러오고 그 값들을 모두 레디스에 넣는다.
           dbPool.getConnection(function(err, conn) {
-            var query_stmt = 'INSERT INTO monitoring_rw VALUES("' + users[i] + '", 0, 0, 0, 0, false, false, false)';
+            var query_stmt = 'INSERT INTO monitoring_rw VALUES("' + users[i] + '", 0, 0, 0, 0, false, false, false, 0)';
             console.log("[" + i + "] " + query_stmt);
             conn.query(query_stmt, function(err, rows) {
               conn.release();
@@ -611,8 +611,6 @@ router.get('/userId/:userId/numAccess/:numAccess', function(req, res, next) {
       //만약에 복제되어 있지 않다면,
         // req.params.userId 위치와 해당 친구가 access 하는 클라우드의 serverLocation 간의 거리 계산
           //친구가 액세스하는 클라우드의 위치를 알려면..
-
-      resolved();
     })
   }, function(err){
       console.log(err);
@@ -677,7 +675,7 @@ router.post('/:userId', function(req, res, next) {
           let query_stmt2 = 'UPDATE monitoring_rw SET WriteCount = ' + newWriteCount + ' WHERE UserId = "' + req.params.userId + '"'
           conn.query(query_stmt2, function(err, result) {
               if(err) {
-                 error_log.debug("Query Stmt = " + query_stmt);
+                 error_log.debug("Query Stmt = " + query_stmt2);
                  error_log.debug("ERROR MSG = " + err);
                  error_log.debug();
                  rejected("DB err!");
