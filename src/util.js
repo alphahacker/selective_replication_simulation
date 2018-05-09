@@ -83,9 +83,9 @@ var util = {
   },
 
   getDistance : function (coord_1, coord_2) {
-    console.log("coord info : ");
-    console.log(coord_1);
-    console.log(coord_2);
+    //console.log("coord info : ");
+    //console.log(coord_1);
+    //console.log(coord_2);
     return util.getDistanceFromLatLonInKm(coord_1.lat, coord_1.lng, coord_2.lat, coord_2.lng);
   },
 

@@ -302,7 +302,7 @@ router.get('/userId/:userId/numAccess/:numAccess', function(req, res, next) {
   promise
   .then(function(){
     return new Promise(function(resolved, rejected){
-      console.log("USER - " + req.params.userId);
+      //console.log("USER - " + req.params.userId);
       var friendList = [];
       var key = req.params.userId;
       var start = 0;
@@ -402,7 +402,7 @@ router.get('/userId/:userId/numAccess/:numAccess', function(req, res, next) {
                       //사용자와 친구 클라우드 위치 가져오기.
                       dbPool.getConnection(function(err, conn) {
                         var query_stmt5 = 'SELECT dstLocation FROM targetLocation WHERE srcLocation = "' + friendLocation + '"'
-                        console.log(query_stmt5);
+                        //console.log(query_stmt5);
                         conn.query(query_stmt5, function(err, friendCloudLocationResult) {
                           if(err) {
                             error_log.debug("Query Stmt = " + query_stmt5);
@@ -411,8 +411,8 @@ router.get('/userId/:userId/numAccess/:numAccess', function(req, res, next) {
                             rejected("DB err!");
                           } else {
                             friendCloudLocation = friendCloudLocationResult[0].dstLocation;
-                            console.log("friend cloud location : " + friendCloudLocation);
-                            console.log("friend cloud location (query result) : " + friendCloudLocationResult);
+                            //console.log("friend cloud location : " + friendCloudLocation);
+                            //console.log("friend cloud location (query result) : " + friendCloudLocationResult);
                             conn.release();
 
                             if(userCloudLocation == friendCloudLocation){
@@ -460,9 +460,9 @@ router.get('/userId/:userId/numAccess/:numAccess', function(req, res, next) {
                                                              "[FRIEND ID] = " + friendList[i] + ", [FRIEND LOCATION] = " + friendLocation + ", [FRIEND CLOUD LOCATION] = " + friendCloudLocation);
                                         } else {
                                           //복제되어 있지 않으면, 사용자 위치와 친구의 가장 가까운 클라우드 간의 거리 계산
-                                          console.log("coord test : ");
-                                          console.log(coord[userLocation]);
-                                          console.log(coord[friendCloudLocation]);
+                                          //console.log("coord test : ");
+                                          //console.log(coord[userLocation]);
+                                          //console.log(coord[friendCloudLocation]);
                                           operation_log.info("[Read Latency Delay]= " + util.getLatencyDelay(coord[userLocation.toUpperCase()], coord[friendCloudLocation.toUpperCase()]) + "ms, " +
                                                              "[USER ID] = " + req.params.userId + ", [USER LOCATION] = " + userLocation + ", [USER CLOUD LOCATION] = " + userCloudLocation + ", " +
                                                              "[FRIEND ID] = " + friendList[i] + ", [FRIEND LOCATION] = " + friendLocation + ", [FRIEND CLOUD LOCATION] = " + friendCloudLocation);
