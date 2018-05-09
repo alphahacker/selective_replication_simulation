@@ -439,11 +439,11 @@ router.get('/userId/:userId/numAccess/:numAccess', function(req, res, next) {
                                       else {
                                         // 복제되어 있다면, 친구의 위치와 friend cloud location 간의 거리에 따라 딜레이 계산하고 로그 남긴다.
                                         // 복제되어있지 않다면, 친구의 위치와 user cloud location 간의 거리에 따라 딜레이 계산하고 로그 남긴다.
-                                        if(userLocation == 'NEWYORK'){
+                                        if(userLocation.toUpperCase() == 'NEWYORK'){
                                           isReplicated = result[0].Cloud_East_Replica;
-                                        } else if (userLocation == 'WASHINGTON') {
+                                        } else if (userLocation.toUpperCase() == 'WASHINGTON') {
                                           isReplicated = result[0].Cloud_West_Replica;
-                                        } else if (userLocation == 'TEXAS') {
+                                        } else if (userLocation.toUpperCase() == 'TEXAS') {
                                           isReplicated = result[0].Cloud_Central_Replica;
                                         } else {
                                           console.error("Cloud Location / Read Count Error ! ... (2)");
