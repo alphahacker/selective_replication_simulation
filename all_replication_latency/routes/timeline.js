@@ -459,7 +459,8 @@ router.get('/userId/:userId/numAccess/:numAccess', function(req, res, next) {
 
                                         if(isReplicated){
                                           //복제되어 있으면, 사용자 위치와 사용자의 가장 가까운 클라우드 간의 거리 계산
-                                          operation_log.info("[Read Latency Delay]= " + util.getLatencyDelay(coord[userLocation.toUpperCase()], coord[userCloudLocation.toUpperCase()]) + "ms, " +
+                                          let latencyDelay = util.getLatencyDelay(coord[userLocation.toUpperCase()], coord[userCloudLocation.toUpperCase()]);
+                                          operation_log.info("[Read Latency Delay]= " + latencyDelay + "ms, " +
                                                              "[USER ID] = " + req.params.userId + ", [USER LOCATION] = " + userLocation + ", [USER CLOUD LOCATION] = " + userCloudLocation + ", " +
                                                              "[FRIEND ID] = " + friendList[i] + ", [FRIEND LOCATION] = " + friendLocation + ", [FRIEND CLOUD LOCATION] = " + friendCloudLocation);
 
@@ -470,7 +471,8 @@ router.get('/userId/:userId/numAccess/:numAccess', function(req, res, next) {
                                           //console.log("coord test : ");
                                           //console.log(coord[userLocation]);
                                           //console.log(coord[friendCloudLocation]);
-                                          operation_log.info("[Read Latency Delay]= " + util.getLatencyDelay(coord[userLocation.toUpperCase()], coord[userCloudLocation.toUpperCase()]) + "ms, " +
+                                          let latencyDelay = util.getLatencyDelay(coord[userLocation.toUpperCase()], coord[userCloudLocation.toUpperCase()]);
+                                          operation_log.info("[Read Latency Delay]= " + latencyDelay + "ms, " +
                                                              "[USER ID] = " + req.params.userId + ", [USER LOCATION] = " + userLocation + ", [USER CLOUD LOCATION] = " + userCloudLocation + ", " +
                                                              "[FRIEND ID] = " + friendList[i] + ", [FRIEND LOCATION] = " + friendLocation + ", [FRIEND CLOUD LOCATION] = " + friendCloudLocation);
 
