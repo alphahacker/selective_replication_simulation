@@ -28,7 +28,7 @@ cron.schedule('30 * * * *', function () {
 
   job.printLatencyDelay();
   job.setLatencyConfigValueZero();
-  job.getInterCloudTraffic();
+  //job.getInterCloudTraffic();
 }).start();
 
 var job = {
