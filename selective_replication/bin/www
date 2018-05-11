@@ -1,0 +1,136 @@
+#!/usr/bin/env node
+
+/**
+ * Module dependencies.
+ */
+
+
+//cluster
+var cluster = require('cluster');
+var numCPUs = require('os').cpus().length;
+
+var app = require('../app');
+var debug = require('debug')('abuba:server');
+var http = require('http');
+
+//log
+var log4js = require('log4js');
+log4js.configure('./configure/log4js.json');
+var operation_log = log4js.getLogger("operation");
+var error_log = log4js.getLogger("error");
+
+//--------------------------------------- START CLUSTER ---------------------------------------//
+// cluster.schedulingPolicy = cluster.SCHED_RR;
+//
+// if(cluster.isMaster){
+//   for(var i=0; i<numCPUs; i++){
+//     cluster.fork();
+//   }
+//   cluster.on('exit', function(worker, code, signal){
+//     //sconsole.log('worker ' + worker.process.pid + ' is dead');
+//
+//     //서버가 죽었을 시 프로세스 자동 추가 실행 또는 알아서 알람 sms나 이메일등 모니터링 알림 처리 하는 부분, 여기.
+//     //cluster.fork(); // <-- 다시 살리지 말자.
+//     error_log.info(" =================== !!! Process is dead !!! =================== ");
+//   })
+// } else {
+//   //Workers can share any TCP connection
+//   //In this case its a HTTP server
+//   console.log(" worker = " + process.pid);
+//   var port = normalizePort(process.env.PORT || '80');
+//   app.set('port', port);
+//   var server = http.createServer(app);
+//
+//   /**
+//    * Listen on provided port, on all network interfaces.
+//    */
+//
+//   server.listen(port);
+//   server.on('error', onError);
+//   server.on('listening', onListening);
+// }
+//--------------------------------------- END CLUSTER ---------------------------------------//
+
+//--------------------------------------- START SINGLE THREAD ---------------------------------------//
+/**
+ * Get port from environment and store in Express.
+ */
+var port = normalizePort(process.env.PORT || '80');
+//var port = normalizePort(process.env.PORT || '3000');
+app.set('port', port);
+
+/**
+ * Create HTTP server.
+ */
+
+var server = http.createServer(app);
+
+
+/**
+ * Listen on provided port, on all network interfaces.
+ */
+
+server.listen(port);
+server.on('error', onError);
+server.on('listening', onListening);
+//--------------------------------------- END SINGLE THREAD ---------------------------------------//
+
+/**
+ * Normalize a port into a number, string, or false.
+ */
+
+function normalizePort(val) {
+    var port = parseInt(val, 10);
+
+    if (isNaN(port)) {
+        // named pipe
+        return val;
+    }
+
+    if (port >= 0) {
+        // port number
+        return port;
+    }
+
+    return false;
+}
+
+/**
+ * Event listener for HTTP server "error" event.
+ */
+
+function onError(error) {
+    if (error.syscall !== 'listen') {
+        throw error;
+    }
+
+    var bind = typeof port === 'string' ?
+        'Pipe ' + port :
+        'Port ' + port;
+
+    // handle specific listen errors with friendly messages
+    switch (error.code) {
+        case 'EACCES':
+            console.error(bind + ' requires elevated privileges');
+            process.exit(1);
+            break;
+        case 'EADDRINUSE':
+            console.error(bind + ' is already in use');
+            process.exit(1);
+            break;
+        default:
+            throw error;
+    }
+}
+
+/**
+ * Event listener for HTTP server "listening" event.
+ */
+
+function onListening() {
+    var addr = server.address();
+    var bind = typeof addr === 'string' ?
+        'pipe ' + addr :
+        'port ' + addr.port;
+    debug('Listening on ' + bind);
+}
